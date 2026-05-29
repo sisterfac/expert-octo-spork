@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Formateador de Notas</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header h1 { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .header p { font-size: 13px; color: rgba(255,255,255,0.5); }
+    .card { background: #fff; border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 24px rgba(0,0,0,0.18); }
+    .card-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    textarea {
+      width: 100%; font-size: 13px; font-family: 'Courier New', monospace;
+      background: #f8f8f6; color: #1a1a1a; border: 1.5px solid #e8e8e5;
+      border-radius: 10px; padding: 12px; resize: vertical; line-height: 1.6; transition: border-color 0.15s;
+    }
+    textarea:focus { outline: none; border-color: #6c63ff; }
+    .icon-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .icon-btn {
+      font-size: 22px; width: 48px; height: 48px; border-radius: 10px;
+      border: 2px solid #e8e8e5; background: #f8f8f6; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; user-select: none; position: relative;
+    }
+    .icon-btn:hover { border-color: #6c63ff; background: #f0eeff; transform: scale(1.08); }
+    .icon-btn.selected { border-color: #6c63ff; background: #ede9ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.18); }
+    .icon-btn .order-badge {
+      position: absolute; top: -6px; right: -6px;
+      background: #6c63ff; color: #fff; font-size: 10px; font-weight: 700;
+      width: 16px; height: 16px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, sans-serif;
+    }
+    .selected-preview {
+      margin-top: 10px; font-size: 22px; min-height: 36px;
+      padding: 6px 10px; background: #f8f8f6; border-radius: 8px;
+      border: 1.5px dashed #ddd; color: #444; display: flex; align-items: center; gap: 4px;
+    }
+    .selected-preview span { font-size: 12px; color: #aaa; font-family: -apple-system, sans-serif; }
+    .clear-icons { font-size: 11px; color: #999; cursor: pointer; text-decoration: underline; margin-top: 6px; display: inline-block; }
+    .clear-icons:hover { color: #6c63ff; }
+    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+    button.primary {
+      flex: 1; font-size: 14px; font-weight: 600; padding: 11px 18px;
+      border-radius: 10px; border: none;
+      background: linear-gradient(135deg, #6c63ff, #48c2f0);
+      color: #fff; cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    }
+    button.primary:hover { opacity: 0.9; }
+    button.primary:active { transform: scale(0.97); }
+    button.secondary {
+      font-size: 14px; padding: 11px 18px; border-radius: 10px;
+      border: 1.5px solid #e8e8e5; background: #fff; color: #555;
+      cursor: pointer; transition: background 0.15s, transform 0.1s;
+    }
+    button.secondary:hover { background: #f4f4f2; }
+    button.secondary:active { transform: scale(0.97); }
+    .result-box {
+      background: #f8f8f6; border: 1.5px solid #e8e8e5; border-radius: 10px;
+      padding: 14px 16px; font-size: 14px; line-height: 1.8;
+      white-space: pre-wrap; color: #1a1a1a; min-height: 100px; word-break: break-word;
+    }
+    .result-box.empty { color: #bbb; }
+    .bottom-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 10px; }
+    .copied-msg { font-size: 12px; color: #2a9a5b; display: none; font-weight: 600; }
+    .copy-btn {
+      font-size: 13px; padding: 8px 18px; border-radius: 10px;
+      border: 1.5px solid #e8e8e5; background: #fff; color: #444;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .copy-btn:hover { background: #f0f0ee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📺 Formateador de Notas</h1>
+      <p>Formato automático para boletines informativos</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Iconos de la nota</div>
+      <div class="icon-grid" id="icon-grid"></div>
+      <div class="selected-preview" id="icon-preview"><span>Ninguno seleccionado</span></div>
+      <div class="clear-icons" onclick="clearIcons()">✕ Limpiar selección</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Nota en bruto</div>
+      <textarea id="input" rows="11" placeholder="Pega aquí la nota completa..."></textarea>
+    </div>
+
+    <div class="card">
+      <div class="btn-row">
+        <button class="primary" onclick="formatear()">⚡ Formatear</button>
+        <button class="secondary" onclick="limpiar()">Limpiar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Resultado</div>
+      <div class="result-box empty" id="output">El resultado aparecerá aquí...</div>
+      <div class="bottom-row">
+        <span class="copied-msg" id="copied-msg">¡Copiado!</span>
+        <button class="copy-btn" onclick="copiar()">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ICONS = [
+      '📺','📻','📰','🌐','🟢','🟡','🔴','▪️',
+      '👆🏻','⚽','🛡️','⚠️','🎙️','📡','🏛️','💬',
+      '🚨','📢','🔵','⚪','🟠','🟣','🟤','⭐'
+    ];
+
+    let selectedIcons = [];
+
+    function renderGrid() {
+      const grid = document.getElementById('icon-grid');
+      grid.innerHTML = '';
+      ICONS.forEach(icon => {
+        const btn = document.createElement('div');
+        btn.className = 'icon-btn';
+        btn.textContent = icon;
+        const idx = selectedIcons.indexOf(icon);
+        if (idx !== -1) {
+          btn.classList.add('selected');
+          const badge = document.createElement('div');
+          badge.className = 'order-badge';
+          badge.textContent = idx + 1;
+          btn.appendChild(badge);
+        }
+        btn.addEventListener('click', () => toggleIcon(icon));
+        grid.appendChild(btn);
+      });
+      updatePreview();
+    }
+
+    function toggleIcon(icon) {
+      const idx = selectedIcons.indexOf(icon);
+      if (idx !== -1) selectedIcons.splice(idx, 1);
+      else selectedIcons.push(icon);
+      renderGrid();
+    }
+
+    function clearIcons() {
+      selectedIcons = [];
+      renderGrid();
+    }
+
+    function updatePreview() {
+      const preview = document.getElementById('icon-preview');
+      if (selectedIcons.length === 0) {
+        preview.innerHTML = '<span>Ninguno seleccionado</span>';
+      } else {
+        preview.textContent = selectedIcons.join('');
+      }
+    }
+
+    function formatear() {
+      const raw = document.getElementById('input').value.trim();
+      if (!raw) return;
+
+      let titulo = '', url = '', canal = '', programa = '', conductor = '', cuerpo = '';
+
+      const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+      // Formato A: [HH:MM:SS Título](url)
+      const formatoA = raw.match(/\[[\d:]+\s+(.+?)\]\((https?:\/\/[^\)]+)\)/);
+      if (formatoA) {
+        titulo = formatoA[1].trim();
+        url = formatoA[2].trim();
+      } else {
+        // Formato B: primera línea es el título (texto plano)
+        const primeraLinea = lines[0];
+        if (primeraLinea && !primeraLinea.match(/^\(20\d{2}/) && !primeraLinea.match(/^https?:\/\//)) {
+          titulo = primeraLinea.trim();
+        }
+      }
+
+      // Extraer metadatos de la línea (YYYY-MM-DD),...
+      const metaMatch = raw.match(/\(\d{4}-\d{2}-\d{2}\),\s*(.+)/);
+      if (metaMatch) {
+        const parts = metaMatch[1].split(',').map(s => s.trim());
+        canal = parts[0] || '';
+        programa = parts[1] || '';
+        conductor = parts[2] || '';
+      }
+
+      // URL: buscar en todo el texto
+      if (!url) {
+        const urlMatch = raw.match(/https?:\/\/\S+/);
+        if (urlMatch) url = urlMatch[0].trim();
+      }
+
+      // Extraer cuerpo: después de la línea de metadatos
+      const metaPos = raw.search(/\(\d{4}-\d{2}-\d{2}\)/);
+      if (metaPos !== -1) {
+        const afterMeta = raw.indexOf('\n', metaPos);
+        if (afterMeta !== -1) {
+          let rest = raw.slice(afterMeta).trim();
+          rest = rest.replace(/https?:\/\/\S+/g, '').trim();
+          cuerpo = rest;
+        }
+      }
+
+      // Fallback cuerpo
+      if (!cuerpo) {
+        const bodyLines = lines.filter(l =>
+          l !== titulo &&
+          !l.match(/^\(20\d{2}/) &&
+          !l.match(/^https?:\/\//) &&
+          !l.match(/^\*/) &&
+          l.length > 40
+        );
+        cuerpo = bodyLines.join(' ').replace(/https?:\/\/\S+/g, '').trim();
+      }
+
+      // Separar número y nombre del canal
+      const canalNumMatch = canal.match(/^(Canal\s+\d+)\s*(.*)/i);
+      const canalNum = canalNumMatch ? canalNumMatch[1] : canal;
+      const canalNombre = canalNumMatch ? canalNumMatch[2].trim() : '';
+
+      const iconos = selectedIcons.length > 0 ? selectedIcons.join('') : '📺';
+      const lineaCanal = `▪️${canalNum} ${canalNombre}, ${programa}, ${conductor}`;
+      const resultado = `${iconos} *${titulo}*\n${lineaCanal}\n${cuerpo}\n${url}`;
+
+      const out = document.getElementById('output');
+      out.textContent = resultado;
+      out.classList.remove('empty');
+    }
+
+    function limpiar() {
+      document.getElementById('input').value = '';
+      clearIcons();
+      const out = document.getElementById('output');
+      out.textContent = 'El resultado aparecerá aquí...';
+      out.classList.add('empty');
+    }
+
+    function copiar() {
+      const text = document.getElementById('output').textContent;
+      if (!text || text === 'El resultado aparecerá aquí...') return;
+      navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById('copied-msg');
+        msg.style.display = 'inline';
+        setTimeout(() => msg.style.display = 'none', 2000);
+      });
+    }
+
+    renderGrid();
+  </script>
+</body>
+</html>
